@@ -288,7 +288,131 @@ app.post("/print", (req, res) => {
     });
   }
 });
+// ================= BRIDGE API =================
 
+function bridgeAuth(req, res, next) {
+  const expected = process.env.PRINT_BRIDGE_TOKEN;
+
+  if (!expected) {
+    return res.status(503).json({
+      success: false,
+      error: "PRINT_BRIDGE_TOKEN is not configured"
+    });
+  }
+
+  const got = String(req.get("authorization") || "")
+    .replace(/^Bearer\s+/i, "");
+
+  if (!got || got !== expected) {
+    return res.status(401).json({
+      success: false,
+      error: "Unauthorized"
+    });
+  }
+
+  next();
+}
+
+app.get("/api/bridge/jobs", bridgeAuth, (req, res) => {
+  try {
+    const files = fs.readdirSync(JOBS).filter(name => name.endsWith(".json"));
+    const jobs = [];
+
+    for (const name of files) {
+      try {
+        const job = JSON.parse(
+          fs.readFileSync(path.join(JOBS, name), "utf8")
+        );
+
+        if (job.status === "PAID" && !job.bridgeAckAt) {
+          jobs.push({
+            id: job.id,
+            originalName: job.originalName,
+            service: job.service || "Print",
+            pages: job.pages || 1,
+            copies: job.copies || 1,
+            amount: job.amount || 0
+          });
+        }
+      } catch {}
+    }
+
+    res.json({ success: true, jobs });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/bridge/jobs/:id/file", bridgeAuth, (req, res) => {
+  try {
+    const job = readJob(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        error: "Job not found"
+      });
+    }
+
+    if (job.status !== "PAID") {
+      return res.status(409).json({
+        success: false,
+        error: `Job status is ${job.status}`
+      });
+    }
+
+    if (!job.storedFile || !fs.existsSync(job.storedFile)) {
+      return res.status(404).json({
+        success: false,
+        error: "Stored file not found"
+      });
+    }
+
+    res.download(
+      job.storedFile,
+      path.basename(job.originalName || `${job.id}.pdf`)
+    );
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/bridge/jobs/:id/ack", bridgeAuth, (req, res) => {
+  try {
+    const job = readJob(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        error: "Job not found"
+      });
+    }
+
+    job.bridgeAckAt = new Date().toISOString();
+    job.bridgeLocalQueueName =
+      String(req.body?.localQueueName || "");
+    job.status = "PRINT_QUEUED";
+
+    saveJob(job);
+
+    res.json({
+      success: true,
+      jobId: job.id,
+      status: job.status
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 app.listen(process.env.PORT || 3000, "0.0.0.0", () => {
   console.log("==============================");
   console.log("Shri Shyam Print API Started!");
