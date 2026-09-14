@@ -289,10 +289,11 @@ app.post("/print", (req, res) => {
   }
 });
 
-app.listen(3000, () => {
+app.listen(process.env.PORT || 3000, "0.0.0.0", () => {
   console.log("==============================");
   console.log("Shri Shyam Print API Started!");
   console.log("API: http://localhost:3000");
   console.log("Razorpay:", razorpay ? "CONFIGURED" : "NOT CONFIGURED");
   console.log("==============================");
 });
+
