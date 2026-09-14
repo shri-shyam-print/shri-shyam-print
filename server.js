@@ -16,7 +16,7 @@ const app = express();
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-const ROOT = "C:\\shrishyamprint";
+const ROOT = process.env.PRINT_ROOT || process.cwd();
 const UPLOADS = path.join(ROOT, "uploads");
 const JOBS = path.join(ROOT, "jobs");
 const QUEUE = path.join(ROOT, "print-queue");
