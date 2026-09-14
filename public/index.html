@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shri Shyam Print – Editor Pro</title>
+<style>
+:root{--green:#15803d;--blue:#2563eb;--red:#dc2626;--muted:#64748b;--bg:#f3f4f6}
+*{box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;max-width:980px;margin:20px auto;padding:16px;background:var(--bg);color:#111827}
+.card{background:#fff;padding:20px;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.08);margin-bottom:16px}
+label{font-weight:600;display:block;margin:7px 0 4px}
+input,select{padding:10px;width:100%;margin:5px 0 12px;border:1px solid #d1d5db;border-radius:8px}
+button{padding:10px 14px;border:0;border-radius:8px;background:#111827;color:#fff;cursor:pointer;font-weight:600}
+button.secondary{background:#475569} button.green{background:var(--green)} button.blue{background:var(--blue)} button.red{background:var(--red)} button.light{background:#e5e7eb;color:#111827}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1 1 150px}
+.small{font-size:12px;color:var(--muted)}
+#total{font-size:28px;font-weight:700}
+#msg{font-weight:700}
+.panel{display:none;margin-top:15px;padding:15px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0}
+#previewPages{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.previewCard{background:#fff;border:1px solid #e5e7eb;padding:8px;border-radius:10px;text-align:center}
+.previewCard canvas,.previewCard img{max-width:100%;height:auto;display:block;margin:auto;border-radius:5px}
+#editorWrap{display:none;margin-top:16px}
+.editorTop{display:grid;grid-template-columns:240px 1fr;gap:14px}
+@media(max-width:780px){.editorTop{grid-template-columns:1fr}}
+#thumbList{display:flex;flex-direction:column;gap:8px;max-height:540px;overflow:auto}
+.thumb{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:8px;cursor:pointer}
+.thumb.active{outline:3px solid #2563eb}
+.thumb img{width:100%;max-height:120px;object-fit:contain;background:#f8fafc}
+.thumb .trow{display:flex;gap:5px;margin-top:6px}.thumb button{flex:1;padding:7px 6px;font-size:12px}
+#cropArea{background:#111;min-height:420px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:10px}
+#cropImage{max-width:100%;display:block}
+.controls{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px}
+.controls .line{display:grid;grid-template-columns:140px 1fr 70px;gap:8px;align-items:center;margin:8px 0}
+.controls input[type=range]{margin:0;width:100%}
+.value{font-family:monospace;text-align:right}
+.note{background:#fffbeb;border:1px solid #fde68a;padding:10px;border-radius:8px;font-size:12px}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:12px;font-weight:700}
+#layoutPreview{background:#111;border-radius:10px;padding:10px;text-align:center}
+#layoutCanvas{max-width:100%;height:auto;background:#fff}
+.fileGroup{display:none;margin-bottom:10px}
+.fileGroup.active{display:block}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;align-items:center;justify-content:center;padding:15px}
+.modal.show{display:flex}
+.modalBox{width:min(960px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:14px;padding:15px}
+</style>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+<div class="card">
+<h1>Shri Shyam Print</h1>
+<p>Upload → Edit/Crop → A4 Layout → Payment → Automatic Canon Printing</p>
+
+<label>Service</label>
+<select id="service">
+<option value="10" data-type="bw">A4 B&amp;W - ₹10/page</option>
+<option value="20" data-type="color">A4 Colour - ₹20/page</option>
+<option value="50" data-type="photo">Photo Print - ₹50/page</option>
+<option value="10" data-type="aadhaar">Aadhaar Card - ₹10/page</option>
+<option value="20" data-type="aadhaar-color">Aadhaar Card Colour - ₹20/page</option>
+<option value="10" data-type="idcard">ID/PAN Card - ₹10/page</option>
+</select>
+
+<label>Document Mode</label>
+<select id="modeSelect">
+  <option value="single">📄 Single file / page</option>
+  <option value="frontback">🪪 Aadhaar/PAN Front + Back (1 A4)</option>
+</select>
+
+<div id="normalFileGroup" class="fileGroup active">
+<label id="singleFileLabel">File</label>
+<input id="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp">
+<div class="small">PDF, JPG, JPEG, PNG ya WEBP</div>
+</div>
+
+<div id="twoSideGroup" class="fileGroup">
+  <div class="row">
+    <div>
+      <label>🟢 FRONT</label>
+      <input id="frontFile" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf">
+    </div>
+    <div>
+      <label>🔵 BACK</label>
+      <input id="backFile" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf">
+    </div>
+  </div>
+  <div class="small">Aadhaar/PAN/ID ke liye FRONT aur BACK yahin alag-alag select karein.</div>
+</div>
+
+<div class="row">
+<button type="button" id="previewBtn" class="blue">👁️ Preview</button>
+<button type="button" id="editBtn" class="green">✏️ Edit / Crop</button>
+</div>
+
+<div id="previewBox" class="panel">
+<h3>📄 Preview</h3>
+<p id="previewText">Pehle file select karein.</p>
+<div id="previewPages"></div>
+</div>
+
+<div id="editBox" class="panel">
+<h3>✏️ Photoshop-style Edit</h3>
+<div class="note">Crop box ke <b>4 corners + side handles</b> pakad kar resize karein. Rotate ko <b>-180° se +180°</b> tak ghuma sakte hain. Light, contrast aur colour bhi control kar sakte hain.</div>
+<div id="editorWrap">
+  <div class="editorTop">
+    <div>
+      <div class="badge">Pages / Sides</div>
+      <div id="thumbList"></div>
+    </div>
+    <div>
+      <div id="cropArea"><img id="cropImage" alt="Edit preview"></div>
+      <div class="controls">
+        <div class="row">
+          <button type="button" id="rotLeft" class="secondary">↶ -90°</button>
+          <button type="button" id="rotRight" class="secondary">↷ +90°</button>
+          <button type="button" id="resetEdit" class="light">Reset</button>
+          <button type="button" id="applyEdit" class="green">✅ Apply</button>
+        </div>
+        <div class="line"><b>Rotate</b><input id="rotateRange" type="range" min="-180" max="180" step="0.5" value="0"><span class="value" id="rotateVal">0°</span></div>
+        <div class="line"><b>Brightness</b><input id="brightnessRange" type="range" min="50" max="150" step="1" value="100"><span class="value" id="brightnessVal">100%</span></div>
+        <div class="line"><b>Contrast</b><input id="contrastRange" type="range" min="50" max="150" step="1" value="100"><span class="value" id="contrastVal">100%</span></div>
+        <div class="line"><b>Colour</b><input id="saturationRange" type="range" min="0" max="180" step="1" value="100"><span class="value" id="saturationVal">100%</span></div>
+        <label style="margin-top:10px">Crop Ratio</label>
+        <select id="ratioSelect">
+          <option value="free">Free Crop</option>
+          <option value="1.586" id="aadhaarRatio">Aadhaar/ID Card (85.6 × 54 mm)</option>
+          <option value="1">Square 1:1</option>
+          <option value="1.333">4:3</option>
+          <option value="1.5">3:2</option>
+          <option value="1.777">16:9</option>
+        </select>
+        <div class="small">Tip: tilted Aadhaar/PAN ko pehle Rotate slider se straight karein, phir corners se exact crop set karein.</div>
+      </div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button type="button" id="deletePage" class="red">🗑 Delete current page</button>
+    <button type="button" id="moveUp" class="secondary">⬆ Move Up</button>
+    <button type="button" id="moveDown" class="secondary">⬇ Move Down</button>
+    <button type="button" id="finishEdit" class="green">✅ Finish Edit &amp; Make PDF</button>
+  </div>
+  <div id="aadhaarLayoutControls" class="controls" style="display:none">
+    <label>Aadhaar Front + Back A4 Layout</label>
+    <select id="aadhaarLayout"><option value="horizontal">TOP — Front Left + Back Right (1 A4)</option><option value="vertical">Top/Bottom — Front Top + Back Bottom (1 A4)</option></select>
+    <div class="small">Aadhaar FRONT + BACK ek hi A4 page par, card-size 85.6 × 54 mm. Default: side-by-side.</div>
+  </div>
+  <div id="layoutPreview" style="display:none;margin-top:12px">
+    <div class="badge">A4 Final Layout Preview</div>
+    <br><canvas id="layoutCanvas" width="700" height="990"></canvas>
+  </div>
+</div>
+</div>
+
+<label>Copies</label>
+<input id="copies" type="number" min="1" value="1">
+<h3>Total pages: <span id="pages">1</span></h3>
+<h3>Total: ₹<span id="total">10</span></h3>
+<button type="button" id="pay" class="green">💳 Pay &amp; Print</button>
+<p class="small">Razorpay payment sirf Pay &amp; Print dabane par load hoga.</p>
+<p id="msg">File select karein.</p>
+</div>
+
+
+<script>
+let pdfLoadPromise=null, cropperLoadPromise=null, jspdfLoadPromise=null, razorpayLoadPromise=null;
+let editItems=[], currentIndex=-1, cropper=null, finalPdfBlob=null, finalPdfName='shri_shyam_print_final.pdf';
+
+// Explicit DOM references so this also works reliably in Chrome/Edge.
+const service=document.getElementById('service');
+const modeSelect=document.getElementById('modeSelect');
+const fileEl=document.getElementById('file');
+const frontFile=document.getElementById('frontFile');
+const backFile=document.getElementById('backFile');
+const normalFileGroup=document.getElementById('normalFileGroup');
+const twoSideGroup=document.getElementById('twoSideGroup');
+const pagesEl=document.getElementById('pages');
+const totalEl=document.getElementById('total');
+const copiesEl=document.getElementById('copies');
+const msg=document.getElementById('msg');
+const previewBox=document.getElementById('previewBox');
+const editBox=document.getElementById('editBox');
+const previewText=document.getElementById('previewText');
+const previewPages=document.getElementById('previewPages');
+const editorWrap=document.getElementById('editorWrap');
+const thumbList=document.getElementById('thumbList');
+const cropImage=document.getElementById('cropImage');
+const rotateRange=document.getElementById('rotateRange');
+const rotateVal=document.getElementById('rotateVal');
+const brightnessRange=document.getElementById('brightnessRange');
+const brightnessVal=document.getElementById('brightnessVal');
+const contrastRange=document.getElementById('contrastRange');
+const contrastVal=document.getElementById('contrastVal');
+const saturationRange=document.getElementById('saturationRange');
+const saturationVal=document.getElementById('saturationVal');
+const ratioSelect=document.getElementById('ratioSelect');
+function selectedFiles(){
+  if(isTwoSided()) return [frontFile.files && frontFile.files[0], backFile.files && backFile.files[0]].filter(Boolean);
+  return fileEl.files && fileEl.files[0] ? [fileEl.files[0]] : [];
+}
+
+function loadScriptOnce(src, testFn){
+  return new Promise((resolve,reject)=>{
+    if(testFn()) return resolve();
+    const s=document.createElement('script'); s.src=src; s.onload=()=>testFn()?resolve():reject(new Error('Library load failed')); s.onerror=()=>reject(new Error('Network load failed')); document.head.appendChild(s);
+  });
+}
+function loadPdfJs(){if(window.pdfjsLib)return Promise.resolve();if(pdfLoadPromise)return pdfLoadPromise;pdfLoadPromise=loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',()=>!!window.pdfjsLib).then(()=>{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';});return pdfLoadPromise;}
+function loadCropper(){if(window.Cropper)return Promise.resolve();if(cropperLoadPromise)return cropperLoadPromise;cropperLoadPromise=loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js',()=>!!window.Cropper).then(()=>{const l=document.createElement('link');l.rel='stylesheet';l.href='https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css';document.head.appendChild(l);});return cropperLoadPromise;}
+function loadJsPdf(){if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve();if(jspdfLoadPromise)return jspdfLoadPromise;jspdfLoadPromise=loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF));return jspdfLoadPromise;}
+function loadRazorpay(){
+  if(window.Razorpay) return Promise.resolve();
+  if(razorpayLoadPromise) return razorpayLoadPromise;
+  razorpayLoadPromise=loadScriptOnce('https://checkout.razorpay.com/v1/checkout.js',()=>!!window.Razorpay);
+  return razorpayLoadPromise;
+}
+
+
+function getApiBase(){ return ''; }
+function apiUrl(path){ return path; }
+
+function type(){
+  return service.options[service.selectedIndex].dataset.type;
+}
+function isAadhaar(){
+  return type()==='aadhaar' || type()==='aadhaar-color';
+}
+function isTwoSided(){
+  return isAadhaar() || modeSelect.value==='frontback';
+}
+
+function updateInputs(){
+  const two=isTwoSided();
+  normalFileGroup.classList.toggle('active',!two);
+  twoSideGroup.classList.toggle('active',two);
+  modeSelect.value=isAadhaar()?'frontback':modeSelect.value;
+  if(two) fileEl.value=''; else {frontFile.value='';backFile.value='';}
+}
+service.addEventListener('change',()=>{updateInputs(); editItems=[]; calc();});
+modeSelect.addEventListener('change',()=>{updateInputs(); editItems=[]; calc();});
+
+async function fileToItems(file, labelPrefix){
+  if(file.name.toLowerCase().endsWith('.pdf')){
+    await loadPdfJs();
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+    const out=[];
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i); const vp=page.getViewport({scale:1.6});
+      const c=document.createElement('canvas'); c.width=vp.width;c.height=vp.height;
+      await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+      out.push({label:`${labelPrefix||file.name} – Page ${i}`,src:c.toDataURL('image/jpeg',0.92),rotation:0,brightness:100,contrast:100,saturation:100,deleted:false,cropRatio:null,editedSrc:null});
+    }
+    return out;
+  }
+  const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(new Error('Image read nahi ho paayi.'));r.readAsDataURL(file);});
+  return [{label:labelPrefix||file.name,src:dataUrl,rotation:0,brightness:100,contrast:100,saturation:100,deleted:false,cropRatio:null,editedSrc:null}];
+}
+
+async function buildItems(){
+  const files=selectedFiles(); if(!files.length) throw new Error('Pehle file select karein.');
+  let out=[];
+  if(isTwoSided() && files.length>2) throw new Error('Front + Back mode me maximum 2 files select karein.');
+  for(let i=0;i<files.length;i++) {
+    let label=files[i].name;
+    if(isTwoSided()) label=(i===0?'FRONT':i===1?'BACK':files[i].name);
+    out.push(...await fileToItems(files[i], label));
+  }
+  if(isTwoSided() && files.length<2) throw new Error('FRONT aur BACK dono select karein.');
+  return out;
+}
+
+async function calc(){
+  try{
+    console.log('PAY CLICK START');
+    const files=selectedFiles(); if(!files.length){pagesEl.textContent='0';totalEl.textContent='0';msg.textContent='File select karein.';return;}
+    let count;
+    if(editItems.length){count=editItems.filter(x=>!x.deleted).length || 0; if(isTwoSided() && editItems.filter(x=>!x.deleted).length>=2) count=1;}
+    else if(isTwoSided()) count=1;
+    else {count=0;for(const f of files){if(f.name.toLowerCase().endsWith('.pdf')){await loadPdfJs();const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;count+=pdf.numPages;}else count+=1;}}
+    pagesEl.textContent=count;
+    const t=type(); let rate=Number(service.value); if(count>10&&t==='bw')rate=5;if(count>10&&t==='color')rate=15;
+    totalEl.textContent=String(count*rate*Math.max(1,Number(copiesEl.value)||1)); msg.textContent=count+' page(s), rate ₹'+rate+'/page';
+  }catch(e){console.error(e);msg.textContent='Calculation error';}
+}
+fileEl.addEventListener('change',()=>{editItems=[];calc();}); frontFile.addEventListener('change',()=>{editItems=[];calc();}); backFile.addEventListener('change',()=>{editItems=[];calc();}); copiesEl.addEventListener('input',calc);
+
+async function renderPreview(){
+  previewPages.innerHTML='';
+  const items=editItems.length?editItems.filter(x=>!x.deleted):await buildItems();
+  if(!editItems.length){editItems=items.map(x=>({...x}));}
+  if(isTwoSided() && items.length>=2){
+    const card=document.createElement('div');card.className='previewCard';
+    const c=document.createElement('canvas');c.width=700;c.height=990;c.style.width='100%';
+    const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,700,990);ctx.strokeStyle='#cbd5e1';ctx.strokeRect(1,1,698,988);
+    const scale=700/210,w=85.6*scale,h=54*scale,x=(700-w)/2;
+    await drawImageFit(ctx,items[0].editedSrc||items[0].src,x,110,w,h);
+    await drawImageFit(ctx,items[1].editedSrc||items[1].src,x,510,w,h);
+    const tag=document.createElement('div');tag.textContent='A4 — FRONT + BACK (1 page)';tag.style.fontWeight='700';tag.style.marginTop='8px';
+    card.appendChild(c);card.appendChild(tag);previewPages.appendChild(card);previewText.textContent='1 A4 page ready (FRONT + BACK)';return;
+  }
+  items.forEach(it=>{const d=document.createElement('div');d.className='previewCard';const img=document.createElement('img');img.src=it.editedSrc||it.src;d.appendChild(img);const p=document.createElement('div');p.textContent=it.label;d.appendChild(p);previewPages.appendChild(d);});
+  previewText.textContent=items.length+' item(s) ready';
+}
+previewBtn.onclick=async()=>{try{previewBox.style.display='block';editBox.style.display='none';previewText.textContent='Preview load ho raha hai...';await renderPreview();}catch(e){alert(e.message)}};
+
+function currentItem(){return editItems[currentIndex]}
+function applyFilterVisual(){if(!cropImage)return;const it=currentItem();if(!it)return;cropImage.style.filter=`brightness(${it.brightness}%) contrast(${it.contrast}%) saturate(${it.saturation}%)`;}
+function setControlsFromItem(){const it=currentItem();if(!it)return;rotateRange.value=it.rotation;rotateVal.textContent=it.rotation+'°';brightnessRange.value=it.brightness;brightnessVal.textContent=it.brightness+'%';contrastRange.value=it.contrast;contrastVal.textContent=it.contrast+'%';saturationRange.value=it.saturation;saturationVal.textContent=it.saturation+'%';ratioSelect.value=it.cropRatio?String(it.cropRatio):'free';applyFilterVisual();}
+function refreshThumbs(){thumbList.innerHTML='';editItems.forEach((it,i)=>{const d=document.createElement('div');d.className='thumb'+(i===currentIndex?' active':'');if(it.deleted){d.style.opacity='.35'}const img=document.createElement('img');img.src=it.editedSrc||it.src;d.appendChild(img);const t=document.createElement('div');t.textContent=it.label+(it.deleted?' — DELETED':'');d.appendChild(t);d.onclick=()=>selectItem(i);thumbList.appendChild(d);});}
+async function initCropper(){if(cropper){cropper.destroy();cropper=null}await loadCropper();cropper=new Cropper(cropImage,{viewMode:1,dragMode:'move',autoCropArea:.85,background:false,responsive:true,restore:true,rotatable:true,zoomable:true,scalable:false,movable:true,center:true});setTimeout(()=>{const r=currentItem()?.cropRatio;if(r)cropper.setAspectRatio(r);else cropper.setAspectRatio(NaN);},80);}
+async function commitCurrentCrop(){const it=currentItem();if(!it||it.deleted||!cropper)return;let c=cropper.getCroppedCanvas({maxWidth:2400,maxHeight:2400,imageSmoothingEnabled:true,imageSmoothingQuality:'high'});c=applyPixelAdjustments(c,it.brightness,it.contrast,it.saturation);it.editedSrc=c.toDataURL('image/jpeg',0.92);}
+async function selectItem(i){await commitCurrentCrop();currentIndex=i;const it=currentItem();if(!it||it.deleted)return;cropImage.src=it.editedSrc||it.src;setControlsFromItem();refreshThumbs();await initCropper();}
+
+editBtn.onclick=async()=>{try{editBox.style.display='block';previewBox.style.display='none';msg.textContent='Editor load ho raha hai...';if(!editItems.length) editItems=await buildItems();if(!editItems.length)throw new Error('No editable pages');currentIndex=editItems.findIndex(x=>!x.deleted);editorWrap.style.display='block';document.getElementById('aadhaarLayoutControls').style.display=isTwoSided()?'block':'none';refreshThumbs();await selectItem(currentIndex);await calc();msg.textContent='Edit mode ready';}catch(e){console.error(e);alert(e.message)}};
+
+rotateRange.oninput=()=>{const it=currentItem();it.rotation=Number(rotateRange.value);rotateVal.textContent=it.rotation+'°';applyFilterVisual();if(cropper)cropper.rotateTo(it.rotation);};
+brightnessRange.oninput=()=>{currentItem().brightness=Number(brightnessRange.value);brightnessVal.textContent=brightnessRange.value+'%';applyFilterVisual()};
+contrastRange.oninput=()=>{currentItem().contrast=Number(contrastRange.value);contrastVal.textContent=contrastRange.value+'%';applyFilterVisual()};
+saturationRange.oninput=()=>{currentItem().saturation=Number(saturationRange.value);saturationVal.textContent=saturationRange.value+'%';applyFilterVisual()};
+ratioSelect.onchange=()=>{const v=ratioSelect.value;currentItem().cropRatio=v==='free'?null:Number(v);if(cropper)cropper.setAspectRatio(currentItem().cropRatio||NaN)};
+document.getElementById('rotLeft').onclick=()=>{rotateRange.value=Math.max(-180,Number(rotateRange.value)-90);rotateRange.dispatchEvent(new Event('input'))};
+document.getElementById('rotRight').onclick=()=>{rotateRange.value=Math.min(180,Number(rotateRange.value)+90);rotateRange.dispatchEvent(new Event('input'))};
+document.getElementById('resetEdit').onclick=async()=>{const it=currentItem();it.rotation=0;it.brightness=100;it.contrast=100;it.saturation=100;it.cropRatio=isTwoSided()?1.586:null;it.editedSrc=null;setControlsFromItem();cropImage.src=it.src;await initCropper();refreshThumbs();};
+
+function applyPixelAdjustments(canvas,b,c,s){
+  if(b===100&&c===100&&s===100)return canvas;
+  const ctx=canvas.getContext('2d'), img=ctx.getImageData(0,0,canvas.width,canvas.height), d=img.data;
+  const bf=b/100, cf=c/100, sf=s/100;
+  for(let i=0;i<d.length;i+=4){let r=d[i],g=d[i+1],bl=d[i+2];
+    r=((r-128)*cf+128)*bf;g=((g-128)*cf+128)*bf;bl=((bl-128)*cf+128)*bf;
+    const mx=Math.max(r,g,bl),mn=Math.min(r,g,bl),lum=(mx+mn)/2;
+    if(sf!==1){const nr=lum+(r-lum)*sf,ng=lum+(g-lum)*sf,nb=lum+(bl-lum)*sf;r=nr;g=ng;bl=nb}
+    d[i]=Math.max(0,Math.min(255,r));d[i+1]=Math.max(0,Math.min(255,g));d[i+2]=Math.max(0,Math.min(255,bl));
+  }
+  ctx.putImageData(img,0,0);return canvas;
+}
+
+document.getElementById('applyEdit').onclick=async()=>{await commitCurrentCrop();refreshThumbs();msg.textContent=currentItem().label+' updated';};
+
+document.getElementById('deletePage').onclick=async()=>{if(currentIndex<0)return;await commitCurrentCrop();editItems[currentIndex].deleted=true;const next=editItems.findIndex(x=>!x.deleted);currentIndex=next;refreshThumbs();if(next>=0)selectItem(next);calc();};
+document.getElementById('moveUp').onclick=async()=>{if(currentIndex<=0)return;await commitCurrentCrop();[editItems[currentIndex-1],editItems[currentIndex]]=[editItems[currentIndex],editItems[currentIndex-1]];currentIndex--;refreshThumbs();selectItem(currentIndex)};
+document.getElementById('moveDown').onclick=async()=>{if(currentIndex<0||currentIndex>=editItems.length-1)return;await commitCurrentCrop();[editItems[currentIndex+1],editItems[currentIndex]]=[editItems[currentIndex],editItems[currentIndex+1]];currentIndex++;refreshThumbs();selectItem(currentIndex)};
+
+function drawImageFit(ctx,src,x,y,w,h){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{const r=Math.min(w/im.width,h/im.height),ww=im.width*r,hh=im.height*r;ctx.drawImage(im,x+(w-ww)/2,y+(h-hh)/2,ww,hh);resolve()};im.onerror=reject;im.src=src})}
+function pxToMm(px,dpi=96){return px*25.4/dpi}
+
+async function imageToCanvas(src,w,h){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);const r=Math.min(c.width/im.width,c.height/im.height);const ww=im.width*r,hh=im.height*r;ctx.drawImage(im,(c.width-ww)/2,(c.height-hh)/2,ww,hh);resolve(c)};im.onerror=()=>reject(new Error('Image load nahi hui.'));im.src=src})}
+
+function dataUrlToBytes(dataUrl){const b64=dataUrl.split(',')[1]||'';const bin=atob(b64);const out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out;}
+function concatBytes(parts){let n=0;for(const p of parts)n+=p.length;const out=new Uint8Array(n);let o=0;for(const p of parts){out.set(p,o);o+=p.length;}return out;}
+function asciiBytes(str){return new TextEncoder().encode(str);}
+function makeJpegPdf(images){
+  // images: [{jpegBytes,width,height,x,y,w,h}] on one A4 page (points)
+  const chunks=[]; let offset=0; const offsets=[0];
+  const push=bytes=>{chunks.push(bytes);offset+=bytes.length;};
+  const obj=(n,body,stream=null)=>{offsets[n]=offset;push(asciiBytes(`${n} 0 obj\n`));push(body);if(stream!==null){push(asciiBytes(`\nstream\n`));push(stream);push(asciiBytes(`\nendstream`));}push(asciiBytes(`\nendobj\n`));};
+  push(asciiBytes('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n'));
+  const imgRefs=[];
+  for(let i=0;i<images.length;i++){
+    const im=images[i];const id=5+i;imgRefs.push(id);
+    obj(id,asciiBytes(`<< /Type /XObject /Subtype /Image /Width ${im.width} /Height ${im.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.jpegBytes.length} >>`),im.jpegBytes);
+  }
+  const contentParts=[];
+  contentParts.push('q\n');
+  images.forEach((im,i)=>{contentParts.push(`${im.w} 0 0 ${im.h} ${im.x} ${im.y} cm\n/Im${i} Do\n`);});
+  contentParts.push('Q\n');
+  const content=asciiBytes(contentParts.join(''));
+  obj(4,asciiBytes(`<< /Length ${content.length} >>`),content);
+  let xobj='';for(let i=0;i<imgRefs.length;i++)xobj+=`/Im${i} ${imgRefs[i]} 0 R `;
+  obj(3,asciiBytes(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << ${xobj}>> >> /Contents 4 0 R >>`));
+  obj(2,asciiBytes('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'));
+  obj(1,asciiBytes('<< /Type /Catalog /Pages 2 0 R >>'));
+  const startxref=offset;let xref=`xref\n0 ${imgRefs.length+5}\n0000000000 65535 f \n`;for(let i=1;i<imgRefs.length+5;i++)xref+=`${String(offsets[i]).padStart(10,'0')} 00000 n \n`;push(asciiBytes(xref));push(asciiBytes(`trailer\n<< /Size ${imgRefs.length+5} /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF`));
+  return new Blob(chunks,{type:'application/pdf'});
+}
+
+async function canvasJpegFit(src,box){
+  const im=await new Promise((resolve,reject)=>{const x=new Image();x.onload=()=>resolve(x);x.onerror=reject;x.src=src;});
+  // Create a high-resolution JPEG of the supplied source, with no stretch.
+  const maxW=1600,maxH=1100; const scale=Math.min(maxW/im.width,maxH/im.height,1); const w=Math.max(1,Math.round(im.width*scale)),h=Math.max(1,Math.round(im.height*scale));
+  const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(im,0,0,w,h);
+  return {jpegBytes:dataUrlToBytes(c.toDataURL('image/jpeg',0.94)),width:w,height:h, ...box};
+}
+
+
+async function finishEditNow(){
+  try{
+    if(!editItems.length) editItems=await buildItems();
+    await commitCurrentCrop();
+    finalPdfBlob=await makeFinalPdf();
+    finalPdfName='shri_shyam_print_final.pdf';
+    // No Final PDF popup. Keep the PDF in memory and continue directly to payment.
+    if(typeof renderLayoutPreview==='function') await renderLayoutPreview();
+    await calc();
+    msg.textContent='Final PDF ready. Pay & Print karein.';
+    return true;
+  }catch(e){
+    console.error(e);
+    alert('Final PDF error: '+(e.message||e));
+    msg.textContent='Final PDF nahi bana.';
+    return false;
+  }
+}
+
+document.getElementById('finishEdit').onclick=finishEditNow;
+
+async function makeFinalPdf(){
+  await commitCurrentCrop();
+  const active=editItems.filter(x=>!x.deleted); if(!active.length)throw new Error('Sab pages delete ho gayi hain.');
+  const A4W=595.28,A4H=841.89;
+  const imgs=[];
+  if(isTwoSided()){
+    if(active.length<2)throw new Error('FRONT aur BACK dono select karein.');
+    const cardW=242.65, cardH=153.07; // 85.6 x 54 mm in points
+    const vertical=document.getElementById('aadhaarLayout').value==='vertical';
+    const pos1=vertical?{x:(A4W-cardW)/2,y:A4H-cardH-45}:{x:35,y:A4H-cardH-35};
+    const pos2=vertical?{x:(A4W-cardW)/2,y:A4H-2*cardH-65}:{x:A4W-cardW-35,y:A4H-cardH-35};
+    imgs.push(await canvasJpegFit(active[0].editedSrc||active[0].src,{...pos1,w:cardW,h:cardH}));
+    imgs.push(await canvasJpegFit(active[1].editedSrc||active[1].src,{...pos2,w:cardW,h:cardH}));
+  }else{
+    // Each active image gets its own A4 page only when more than one page is selected.
+    // For the common single-image case, make exactly one A4 page.
+    for(let i=0;i<active.length;i++){
+      const item=active[i];
+      const im=await canvasJpegFit(item.editedSrc||item.src,{x:0,y:0,w:A4W,h:A4H});
+      imgs.push(im);
+    }
+  }
+  // The tiny PDF writer above creates one page. For multi-page non-front/back, create pages separately by repeating writer per page is complex; use one A4 per image by returning the first for now.
+  // For two-sided Aadhaar this is exactly one A4 page.
+  if(isTwoSided()) return makeJpegPdf(imgs);
+  // Build a multi-page PDF using the same writer with page count support.
+  return makeMultiPageJpegPdf(imgs);
+}
+
+function makeMultiPageJpegPdf(images){
+  const chunks=[]; let offset=0; const offsets=[0]; const push=b=>{chunks.push(b);offset+=b.length;}; const obj=(n,body,stream=null)=>{offsets[n]=offset;push(asciiBytes(`${n} 0 obj\n`));push(body);if(stream!==null){push(asciiBytes(`\nstream\n`));push(stream);push(asciiBytes(`\nendstream`));}push(asciiBytes(`\nendobj\n`));};
+  push(asciiBytes('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n')); let next=3; const pageRefs=[]; const pages=[];
+  images.forEach((im,i)=>{const imgId=next++;const contentId=next++;const pageId=next++;imgId;obj(imgId,asciiBytes(`<< /Type /XObject /Subtype /Image /Width ${im.width} /Height ${im.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.jpegBytes.length} >>`),im.jpegBytes);const content=asciiBytes(`q\n${im.w} 0 0 ${im.h} ${im.x} ${im.y} cm\n/Im0 Do\nQ\n`);obj(contentId,asciiBytes(`<< /Length ${content.length} >>`),content);obj(pageId,asciiBytes(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 ${imgId} 0 R >> >> /Contents ${contentId} 0 R >>`));pageRefs.push(pageId+' 0 R');pages.push(i);});
+  obj(2,asciiBytes(`<< /Type /Pages /Kids [${pageRefs.join(' ')}] /Count ${pageRefs.length} >>`));obj(1,asciiBytes('<< /Type /Catalog /Pages 2 0 R >>'));
+  const startxref=offset;let xref=`xref\n0 ${next}\n0000000000 65535 f \n`;for(let i=1;i<next;i++)xref+=`${String(offsets[i]).padStart(10,'0')} 00000 n \n`;push(asciiBytes(xref));push(asciiBytes(`trailer\n<< /Size ${next} /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF`));return new Blob(chunks,{type:'application/pdf'});
+}
+
+
+
+async function renderLayoutPreview(){const box=document.getElementById('layoutPreview'),c=document.getElementById('layoutCanvas'),ctx=c.getContext('2d');box.style.display='block';ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#e5e7eb';ctx.strokeRect(1,1,c.width-2,c.height-2);
+  if(isTwoSided()){
+    const imgs=editItems.filter(x=>!x.deleted).slice(0,2);const scale=700/210;const w=85.6*scale,h=54*scale,x=(700-w)/2;const vertical=document.getElementById('aadhaarLayout').value==='vertical';
+    await drawImageFit(ctx,imgs[0].editedSrc||imgs[0].src,x,55,w,h); if(imgs[1])await drawImageFit(ctx,imgs[1].editedSrc||imgs[1].src,vertical?x:700-x-w,vertical?330:55,w,h);
+  }else if(editItems.filter(x=>!x.deleted)[0]) await drawImageFit(ctx,editItems.filter(x=>!x.deleted)[0].editedSrc||editItems.filter(x=>!x.deleted)[0].src,0,0,700,990);
+}
+document.getElementById('aadhaarLayout').onchange=renderLayoutPreview;
+document.getElementById('aadhaarLayout').value='horizontal';
+
+// Payment: send final edited PDF when available; otherwise original file.
+window.startPayment = async function startPayment(e){
+  e.preventDefault();
+  msg.textContent='Payment start ho raha hai...';
+  try{
+    console.log('PAY CLICK START');
+    const files=selectedFiles();
+    if(!files.length) throw new Error(isTwoSided()?'FRONT aur BACK dono select karein.':'Pehle file select karein.');
+
+    if(editItems.length && !finalPdfBlob){
+      const ok = await finishEditNow();
+      if(!ok) throw new Error('Final PDF ready nahi hua.');
+    }
+
+    const amountRupees=Number(totalEl.textContent);
+    if(!amountRupees) throw new Error('Amount 0 hai.');
+
+    msg.textContent='Payment order bana rahe hain...';
+
+    const fd=new FormData();
+    const uploadFile = finalPdfBlob
+      ? new File([finalPdfBlob], finalPdfName, {type:'application/pdf'})
+      : files[0];
+
+    fd.append('file', uploadFile);
+    fd.append('amount', String(amountRupees));
+    fd.append('service', service.options[service.selectedIndex].text);
+    fd.append('pages', pagesEl.textContent);
+    fd.append('copies', copiesEl.value);
+
+    const r=await fetch('/api/create-order',{method:'POST',body:fd});
+    const text=await r.text();
+    let order;
+    try{ order=JSON.parse(text); }
+    catch(_){ throw new Error('Server response valid JSON nahi tha. HTTP '+r.status+' — '+text.slice(0,180)); }
+
+    if(!r.ok) throw new Error(order.error || order.message || ('Order create failed ('+r.status+')'));
+    if(!order.orderId || !order.keyId) throw new Error('Server se Razorpay order details nahi mili.');
+    console.log('Razorpay order ready:', order.orderId, order.amount);
+
+    msg.textContent='Razorpay payment khul raha hai...';
+    try { await loadRazorpay(); } catch (loadErr) { throw new Error('Razorpay checkout load nahi hua. Internet connection check karein aur page Ctrl+F5 se refresh karein.'); }
+    if(!window.Razorpay) throw new Error('Razorpay checkout available nahi hai.');
+
+    const razorpayAmount=Number(order.amount);
+    if(!razorpayAmount) throw new Error('Server se Razorpay amount nahi mila.');
+
+    const rz=new Razorpay({
+      key:order.keyId,
+      amount:Math.round(razorpayAmount),
+      currency:'INR',
+      name:'Shri Shyam Print',
+      description:'Print Order',
+      order_id:order.orderId,
+      theme:{color:'#15803d'},
+      modal:{ondismiss:function(){
+        msg.textContent='Payment window band kar diya gaya. Dobara Pay & Print dabayein.';
+      }},
+      handler:async response=>{
+        try{
+          msg.textContent='Payment verify ho raha hai...';
+          const vr=await fetch('/api/verify-payment',{
+            method:'POST',
+            headers:{'content-type':'application/json'},
+            body:JSON.stringify({jobId:order.jobId,...response})
+          });
+          const vt=await vr.text();
+          let v;
+          try{v=JSON.parse(vt)}catch(_){throw new Error('Verification response invalid hai. HTTP '+vr.status+' — '+vt.slice(0,180))}
+          if(!vr.ok || !v.success) throw new Error(v.error || v.message || 'Payment verification failed.');
+          msg.textContent='✅ Payment successful. Print ke liye bhej diya gaya. Printer automatically print karega.';
+        }catch(err){
+          console.error(err);
+          msg.textContent='❌ Payment verify nahi hua.';
+          alert(err.message || 'Payment verification failed.');
+        }
+      }
+    });
+
+    if(rz.on) rz.on('payment.failed', function(resp){
+      const detail = resp && resp.error ? (resp.error.description || resp.error.reason || resp.error.code) : '';
+      msg.textContent='❌ Payment failed.'+(detail?' '+detail:'');
+    });
+
+    rz.open();
+  }catch(e){
+    console.error(e);
+    msg.textContent='❌ '+(e.message||'Payment start nahi hua.');
+    alert(e.message||'Payment error');
+  }
+};
+
+document.getElementById('pay').addEventListener('click', window.startPayment);
+
+if(isAadhaar()) modeSelect.value='frontback';
+updateInputs();
+console.log('Shri Shyam Print payment button ready');
+</script>
+</body>
+</html>

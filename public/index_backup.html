@@ -1,0 +1,94 @@
+
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shri Shyam Print</title>
+<style>
+body{font-family:Arial;max-width:720px;margin:30px auto;padding:20px;background:#f5f5f5}
+.card{background:#fff;padding:22px;border-radius:14px;box-shadow:0 2px 12px #ddd}
+input,select{padding:10px;width:100%;margin:7px 0 14px;box-sizing:border-box}
+button{padding:12px 18px;border:0;border-radius:8px;background:#111;color:#fff;cursor:pointer;width:100%}
+#total{font-size:28px} #msg{font-weight:bold}
+</style>
+</head>
+<body><div class="card">
+<h1>Shri Shyam Print</h1>
+<p>File upload → rate calculation → payment → automatic Canon printing</p>
+
+<label>Service</label>
+<select id="service">
+<option value="10" data-type="bw">A4 B&W - ₹10/page</option>
+<option value="20" data-type="color">A4 Colour - ₹20/page</option>
+<option value="50" data-type="photo">Photo Print - ₹50/page</option>
+<option value="10" data-type="aadhaar">Aadhaar Card - ₹10/page</option>
+<option value="20" data-type="aadhaar-color">Aadhaar Card Colour - ₹20/page</option>
+</select>
+
+<label>File</label>
+<input id="file" type="file" accept=".pdf,.jpg,.jpeg,.png">
+
+<label>Copies</label>
+<input id="copies" type="number" min="1" value="1">
+
+<h3>Total pages: <span id="pages">1</span></h3>
+<h3>Total: ₹<span id="total">0</span></h3>
+<button id="pay">Pay & Print</button>
+<p id="msg"></p>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const service=document.getElementById("service"), fileEl=document.getElementById("file"),
+copiesEl=document.getElementById("copies"), pagesEl=document.getElementById("pages"),
+totalEl=document.getElementById("total"), msg=document.getElementById("msg");
+let pageCount=0;
+
+async function countPages(file){
+ if(!file.name.toLowerCase().endsWith(".pdf")) return 1;
+ const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+ return pdf.numPages;
+}
+async function calc(){
+ const f=fileEl.files[0]; if(!f){pageCount=0;pagesEl.textContent=0;totalEl.textContent=0;return;}
+ msg.textContent="Calculating...";
+ pageCount=await countPages(f); pagesEl.textContent=pageCount;
+ const type=service.options[service.selectedIndex].dataset.type;
+ let rate=Number(service.value);
+ if(pageCount>10 && type==="bw") rate=5;
+ if(pageCount>10 && type==="color") rate=15;
+ totalEl.textContent=(pageCount*rate*Math.max(1,Number(copiesEl.value)||1)).toFixed(0);
+ msg.textContent=pageCount+" page(s), rate ₹"+rate+"/page";
+}
+fileEl.onchange=calc; service.onchange=calc; copiesEl.oninput=calc;
+
+document.getElementById("pay").onclick=async()=>{
+ const f=fileEl.files[0]; if(!f) return alert("Pehle file select karein.");
+ await calc();
+ const amount=Number(totalEl.textContent);
+ if(!amount) return;
+ msg.textContent="Payment order bana rahe hain...";
+ const fd=new FormData();
+ fd.append("file",f); fd.append("amount",amount);
+ fd.append("service",service.options[service.selectedIndex].text);
+ fd.append("pages",pageCount); fd.append("copies",copiesEl.value);
+ const r=await fetch("/api/create-order",{method:"POST",body:fd});
+ const order=await r.json(); if(!r.ok) return alert(order.error||"Order error");
+
+ const rz=new Razorpay({
+  key:order.keyId, amount:order.amount*100, currency:"INR",
+  name:"Shri Shyam Print", description:"Print Order", order_id:order.orderId,
+  handler:async function(response){
+   msg.textContent="Payment verify ho raha hai...";
+   const vr=await fetch("/api/verify-payment",{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({jobId:order.jobId,...response})});
+   const v=await vr.json();
+   msg.textContent=v.ok?"Payment successful. Print queue mein bhej diya gaya.":"Payment verification failed.";
+  }
+ });
+ rz.open();
+};
+</script>
+</body></html>
