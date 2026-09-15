@@ -187,7 +187,7 @@ app.post("/api/verify-payment", async (req, res) => {
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .update(`${job.orderId}|${razorpay_payment_id}`)
       .digest("hex");
 
     if (
